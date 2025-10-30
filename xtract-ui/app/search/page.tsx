@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import "./SearchPage.css";
 
 interface SearchResult {
+  id: Int16Array,
   title: string;
   authors: string;
   update_date: string;
