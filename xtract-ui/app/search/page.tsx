@@ -75,11 +75,6 @@ export default function SearchPage() {
                     {item.abstract.substring(0, 150)}...
                   </p>
                 )}
-                {item.citations && (
-                  <p className="result-citations">
-                    Citations: {item.citations}
-                  </p>
-                )}
               </article>
             </Link>
           ))}
