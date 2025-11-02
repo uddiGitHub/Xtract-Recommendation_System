@@ -1,128 +1,106 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import pandas as pd
-import urllib.parse
+import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
 
-app = FastAPI(title="Xtract API")
+app = FastAPI(title="Research Paper Recommendation API")
 
-# CORS setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allow Next.js frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-print("Xtract API is starting...")
-df = pd.read_csv("/Users/apple/Documents/ML/Xtract/xtract-api/DataSet/arxiv_processed.csv")
-print(f"Data loaded successfully: {len(df)} records")
+print("🔄 Loading dataset and FAISS index...")
 
-# Check available columns and set up ID handling
-print(f"Available columns: {df.columns.tolist()}")
+try:
+    df = pd.read_csv("../xtract-notebook/papers_with_embeddings.csv")
+    embeddings = np.load("../xtract-notebook/embeddings.npy")
+    index = faiss.read_index("../xtract-notebook/papers_index.faiss")
+except Exception as e:
+    raise RuntimeError(f" Failed to load files: {e}")
 
-# Create a proper ID column - use arXiv ID if available, otherwise create one
-if 'id' not in df.columns:
-    # Try to find arXiv ID column
-    arxiv_cols = [col for col in df.columns if 'arxiv' in col.lower() or 'id' in col.lower()]
-    if arxiv_cols:
-        df['id'] = df[arxiv_cols[0]].astype(str)
-        print(f"Using '{arxiv_cols[0]}' as ID column")
-    else:
-        df['id'] = [f"paper_{i}" for i in range(len(df))]
-        print("Created 'id' column from index")
+model = SentenceTransformer("allenai/specter2_base")
 
-@app.get("/search")
-async def search(query: str = Query(None, description="Search query string")):
-    if not query or not query.strip():
-        return []
+print(f" Loaded {len(df)} papers and FAISS index with {index.ntotal} vectors.")
 
-    q_lower = query.lower()
-    search_cols = ["title", "abstract"]
-    available_cols = [col for col in search_cols if col in df.columns]
-    
-    if not available_cols:
-        return []
+class Paper(BaseModel):
+    id: str
+    title: str
+    authors: str
+    update_date: str
+    abstract: str | None = None
+    category_code: str | None = None
 
-    results = df[
-        df[available_cols]
-        .apply(lambda row: row.astype(str).str.lower().str.contains(q_lower).any(), axis=1)
-    ]
+def get_recommendations(paper_id: str, top_k: int = 6):
+    paper = df[df["id"].astype(str) == str(paper_id)]
+    if paper.empty:
+        raise HTTPException(status_code=404, detail="Paper not found")
 
-    records = results.head(50).to_dict(orient="records")
-    
-    # Standardize response format
-    standardized_records = []
-    for record in records:
-        standardized_records.append({
-            'id': record.get('id', 'unknown'),
-            'title': record.get('title', 'No title'),
-            'authors': record.get('authors', 'Unknown authors'),
-            'update_date': record.get('update_date', 
-                                    record.get('date', 
-                                    record.get('published_date', 'Unknown date'))),
-            'abstract': record.get('abstract', ''),
-            'citations': record.get('citations', record.get('citation_count', 0))
-        })
-    
-    return standardized_records
+    text = f"{paper.iloc[0]['title']}. {paper.iloc[0]['abstract']}"
+    query_vec = model.encode([text], normalize_embeddings=True)
 
-@app.get("/paper/{paper_id:path}")
-async def get_paper(paper_id: str):
-    """
-    Get detailed information for a specific paper by ID
-    Uses :path to handle IDs with slashes
-    """
+    D, I = index.search(query_vec, top_k + 1)
+    recs = df.iloc[I[0]].copy()
+    recs["similarity"] = D[0]
+    # Exclude the query paper itself
+    recs = recs[recs["id"].astype(str) != str(paper_id)]
+
+    return recs[["id", "title", "authors", "update_date", "abstract", "similarity"]].head(top_k).to_dict(orient="records")
+
+
+def search_papers(query_text: str, top_k: int = 50):
+    if not query_text.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+
+    query_vec = model.encode([query_text], normalize_embeddings=True)
+    D, I = index.search(query_vec, top_k)
+
+    recs = df.iloc[I[0]].copy()
+    recs["similarity"] = D[0]
+    # Include abstract in output
+    return recs[["id", "title", "authors", "update_date", "abstract", "similarity"]].to_dict(orient="records")
+
+
+@app.get("/")
+def root():
+    return {"message": "SPECTER + FAISS Recommendation API is running 🚀"}
+
+@app.get("/paper/{paper_id}")
+def get_paper(paper_id: str):
+    paper = df[df["id"].astype(str) == str(paper_id)]
+    if paper.empty:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    return paper.iloc[0].to_dict()
+
+@app.get("/recommend/{paper_id}")
+def recommend_papers(paper_id: str, top_k: int = 6):
     try:
-        # URL decode the paper_id in case it was encoded
-        paper_id = urllib.parse.unquote(paper_id)
-        
-        print(f"Looking for paper with ID: {paper_id}")
-        
-        # Try to find paper by id column
-        if 'id' in df.columns:
-            paper = df[df['id'].astype(str) == paper_id]
-        else:
-            paper = pd.DataFrame()
-        
-        if paper.empty:
-            # Try case-insensitive search
-            paper = df[df['id'].astype(str).str.lower() == paper_id.lower()]
-        
-        if paper.empty:
-            # Try partial match for arXiv IDs
-            paper = df[df['id'].astype(str).str.contains(paper_id, case=False, na=False)]
-        
-        if paper.empty:
-            raise HTTPException(status_code=404, detail=f"Paper not found: {paper_id}")
-        
-        paper_data = paper.iloc[0].to_dict()
-        
-        # Standardize the response
-        standardized_data = {
-            'id': paper_data.get('id', paper_id),
-            'title': paper_data.get('title', 'No title'),
-            'authors': paper_data.get('authors', 'Unknown authors'),
-            'update_date': paper_data.get('update_date', 
-                                        paper_data.get('date', 
-                                        paper_data.get('published_date', 'Unknown date'))),
-            'abstract': paper_data.get('abstract', ''),
-            'citations': paper_data.get('citations', paper_data.get('citation_count', 0)),
-            'journal': paper_data.get('journal', paper_data.get('venue', 'arXiv')),
-            'doi': paper_data.get('doi', '')
-        }
-        
-        return standardized_data
-        
+        recs = get_recommendations(paper_id, top_k)
+        return recs
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching paper: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Recommendation error: {e}")
 
-@app.get("/")
-async def root():
-    return {"message": "Xtract API is running", "records": len(df)}
+@app.get("/search")
+def search_endpoint(query: str = Query(..., description="Search text query"), top_k: int = 50):
+    """
+    Search for semantically similar papers using SPECTER embeddings.
+    Example: /search?query=graph neural networks
+    """
+    try:
+        results = search_papers(query, top_k)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search error: {e}")
 
-@app.get("/health")
-async def health():
-    return {"status": "healthy", "records": len(df)}
+
+# Run using:
+# uvicorn main:app --reload
+

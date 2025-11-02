@@ -6,7 +6,6 @@ import logo from "../assets/logo.png";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeOption, setActiveOption] = useState("research");
   const router = useRouter();
 
   const quickSearches = [
@@ -29,7 +28,6 @@ export default function Home() {
 
   const handleQuickSearch = (query: string) => {
     setSearchQuery(query);
-    // Use the query parameter directly instead of searchQuery state
     router.push(`/search?q=${encodeURIComponent(query)}`);
   };
 
@@ -39,7 +37,7 @@ export default function Home() {
         <div className="search-container">
           <div className="logo-container">
             <img src={logo.src} alt="Xtract - AI Research Assistant" />
-            <p>AI-Powered Research Paper Recommendation System</p>
+            <p>Research Paper Recommendation System</p>
           </div>
           
           <form onSubmit={handleSearch}>

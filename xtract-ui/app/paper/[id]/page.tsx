@@ -10,10 +10,7 @@ interface PaperDetail {
   authors: string;
   update_date: string;
   abstract?: string;
-  citations?: number;
-  journal?: string;
-  doi?: string;
-  pdf_url?: string;
+  similarity?: number;
 }
 
 export default function PaperDetailPage() {
@@ -149,6 +146,7 @@ export default function PaperDetailPage() {
                 </div>
                 <div className="card-footer">
                   <span className="rec-date">{rec.update_date}</span>
+                  <span className="rec-date">Similarity Score: {typeof rec.similarity === "number" ? rec.similarity.toFixed(2) : "N/A"}</span>
                   <div className="card-arrow">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
