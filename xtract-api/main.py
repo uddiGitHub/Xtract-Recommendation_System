@@ -1,33 +1,106 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import pandas as pd
+import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
 
-app = FastAPI(title="Xtract API")
+app = FastAPI(title="Research Paper Recommendation API")
 
-# CORS setup to allow frontend (React/Next.js)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # you can restrict later for security
+    allow_origins=["*"],  # Allow Next.js frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-print("Xtract API is starting...")
-df = pd.read_csv("/Users/apple/Documents/ML/Xtract/xtract-api/DataSet/arxiv_processed.csv")
-print(f"Data loaded successfully: {len(df)} records")
+print("🔄 Loading dataset and FAISS index...")
+
+try:
+    df = pd.read_csv("../xtract-notebook/papers_with_embeddings.csv")
+    embeddings = np.load("../xtract-notebook/embeddings.npy")
+    index = faiss.read_index("../xtract-notebook/papers_index.faiss")
+except Exception as e:
+    raise RuntimeError(f" Failed to load files: {e}")
+
+model = SentenceTransformer("allenai/specter2_base")
+
+print(f" Loaded {len(df)} papers and FAISS index with {index.ntotal} vectors.")
+
+class Paper(BaseModel):
+    id: str
+    title: str
+    authors: str
+    update_date: str
+    abstract: str | None = None
+    category_code: str | None = None
+
+def get_recommendations(paper_id: str, top_k: int = 6):
+    paper = df[df["id"].astype(str) == str(paper_id)]
+    if paper.empty:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    text = f"{paper.iloc[0]['title']}. {paper.iloc[0]['abstract']}"
+    query_vec = model.encode([text], normalize_embeddings=True)
+
+    D, I = index.search(query_vec, top_k + 1)
+    recs = df.iloc[I[0]].copy()
+    recs["similarity"] = D[0]
+    # Exclude the query paper itself
+    recs = recs[recs["id"].astype(str) != str(paper_id)]
+
+    return recs[["id", "title", "authors", "update_date", "abstract", "similarity"]].head(top_k).to_dict(orient="records")
+
+
+def search_papers(query_text: str, top_k: int = 50):
+    if not query_text.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+
+    query_vec = model.encode([query_text], normalize_embeddings=True)
+    D, I = index.search(query_vec, top_k)
+
+    recs = df.iloc[I[0]].copy()
+    recs["similarity"] = D[0]
+    # Include abstract in output
+    return recs[["id", "title", "authors", "update_date", "abstract", "similarity"]].to_dict(orient="records")
+
+
+@app.get("/")
+def root():
+    return {"message": "SPECTER + FAISS Recommendation API is running 🚀"}
+
+@app.get("/paper/{paper_id}")
+def get_paper(paper_id: str):
+    paper = df[df["id"].astype(str) == str(paper_id)]
+    if paper.empty:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    return paper.iloc[0].to_dict()
+
+@app.get("/recommend/{paper_id}")
+def recommend_papers(paper_id: str, top_k: int = 6):
+    try:
+        recs = get_recommendations(paper_id, top_k)
+        return recs
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Recommendation error: {e}")
 
 @app.get("/search")
-async def search(query: str = Query(None, description="Search query string")):
-    if not query or not query.strip():
-        return []
+def search_endpoint(query: str = Query(..., description="Search text query"), top_k: int = 50):
+    """
+    Search for semantically similar papers using SPECTER embeddings.
+    Example: /search?query=graph neural networks
+    """
+    try:
+        results = search_papers(query, top_k)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search error: {e}")
 
-    q_lower = query.lower()
 
-    search_cols = ["title", "abstract"]
-    results = df[
-        df[search_cols]
-        .apply(lambda row: row.astype(str).str.lower().str.contains(q_lower).any(), axis=1)
-    ]
+# Run using:
+# uvicorn main:app --reload
 
-    return results.head(50).to_dict(orient="records")

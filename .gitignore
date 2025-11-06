@@ -187,3 +187,8 @@ Thumbs.db
 # Dataset
 xtract-api/DataSet/
 xtract-api/DataSet/arxiv_processed.csv
+
+# embeddings
+xtract-notebook/embeddings.npy
+xtract-notebook/papers_index.faiss
+xtract-notebook/papers_with_embeddings.csv

@@ -1,10 +1,11 @@
 "use client";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import "./SearchPage.css";
 
 interface SearchResult {
-  id: Int16Array,
+  id: string;
   title: string;
   authors: string;
   update_date: string;
@@ -60,21 +61,22 @@ export default function SearchPage() {
       ) : results.length > 0 ? (
         <div className="results-grid">
           {results.map((item, index) => (
-            <article key={index} className="result-card">
-              <h2 className="result-title">{item.title}</h2>
-              <p className="result-author">By {item.authors}</p>
-              <p className="result-year">Published: {item.update_date}</p>
-              {item.abstract && (
-                <p className="result-abstract">
-                  {item.abstract.substring(0, 150)}...
-                </p>
-              )}
-              {item.citations && (
-                <p className="result-citations">
-                  Citations: {item.citations}
-                </p>
-              )}
-            </article>
+            <Link
+              key={index}
+              href={`/paper/${encodeURIComponent(item.id)}`}
+              className="result-card-link"
+            >
+              <article className="result-card">
+                <h2 className="result-title">{item.title}</h2>
+                <p className="result-author">By {item.authors}</p>
+                <p className="result-year">Published: {item.update_date}</p>
+                {item.abstract && (
+                  <p className="result-abstract">
+                    {item.abstract.substring(0, 150)}...
+                  </p>
+                )}
+              </article>
+            </Link>
           ))}
         </div>
       ) : query ? (
