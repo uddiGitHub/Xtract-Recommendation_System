@@ -15,8 +15,7 @@ interface PaperDetail {
 
 export default function PaperDetailPage() {
   const params = useParams();
-  const encodedId = params.id as string;
-  const id = decodeURIComponent(encodedId);
+  const id = params.id as string;
   
   const [paper, setPaper] = useState<PaperDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,24 +27,53 @@ export default function PaperDetailPage() {
     if (id) {
       setLoading(true);
       setError(null);
-      fetch(`https://uddi12-xtract.hf.space/paper/${encodeURIComponent(id)}`)
+      
+      // Test if the API endpoint is accessible
+      fetch(`https://uddi12-xtract.hf.space/paper/${id}`)
         .then((res) => {
           if (!res.ok) {
-            throw new Error('Failed to fetch paper details');
+            throw new Error(`Failed to fetch paper: ${res.status} ${res.statusText}`);
           }
           return res.json();
         })
-        .then((data) => setPaper(data))
-        .catch((err) => setError(err.message))
+        .then((data) => {
+          if (!data || !data.id) {
+            throw new Error('Invalid paper data received');
+          }
+          setPaper(data);
+        })
+        .catch((err) => {
+          console.error('Error fetching paper:', err);
+          setError(err.message);
+        })
         .finally(() => setLoading(false));
 
-      fetch(`https://uddi12-xtract.hf.space/recommend/${encodeURIComponent(id)}`)
-        .then((res) => res.json())
-        .then((data) => setRecommended(data))
-        .catch(() => setRecommended([]))
+      // Fetch recommendations
+      fetch(`https://uddi12-xtract.hf.space/recommend/${id}`)
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error('Failed to fetch recommendations');
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setRecommended(data);
+          } else {
+            setRecommended([]);
+          }
+        })
+        .catch((err) => {
+          console.error('Error fetching recommendations:', err);
+          setRecommended([]);
+        })
         .finally(() => setRecLoading(false));
     }
   }, [id]);
+
+  // Debug: Log the ID and paper data
+  console.log('Paper ID:', id);
+  console.log('Paper data:', paper);
 
   if (loading) {
     return (
@@ -53,6 +81,7 @@ export default function PaperDetailPage() {
         <div className="loading-state">
           <div className="loading-spinner"></div>
           <p>Loading research paper...</p>
+          <p className="debug-info">Paper ID: {id}</p>
         </div>
       </div>
     );
@@ -64,9 +93,18 @@ export default function PaperDetailPage() {
         <div className="error-state">
           <h2>Error loading paper</h2>
           <p>{error}</p>
-          <Link href="/" className="back-button">
-            ← Back to Home
-          </Link>
+          <p className="debug-info">Paper ID: {id}</p>
+          <div className="error-actions">
+            <Link href="/" className="back-button">
+              ← Back to Home
+            </Link>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="retry-button"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -77,7 +115,8 @@ export default function PaperDetailPage() {
       <div className="paper-detail-container">
         <div className="no-paper">
           <h2>Paper not found</h2>
-          <p>The requested paper could not be found in our database.</p>
+          <p>The paper with ID "{id}" could not be found in our database.</p>
+          <p className="debug-info">Please check the paper ID and try again.</p>
           <Link href="/" className="back-button">
             ← Back to Home
           </Link>
@@ -92,6 +131,7 @@ export default function PaperDetailPage() {
         <Link href="/" className="back-button">
           ← Back to Home
         </Link>
+        <div className="paper-id-display">Paper ID: {paper.id}</div>
       </div>
       
       <article className="paper-detail">
@@ -99,8 +139,11 @@ export default function PaperDetailPage() {
           <div className="paper-badge">Research Paper</div>
           <h1 className="paper-title">{paper.title}</h1>
           <div className="authors-section">
-            <div className="authors-avatar"></div>
-            <p className="paper-authors">👥 : {paper.authors}</p>
+            <div className="authors-icon">👥</div>
+            <p className="paper-authors">{paper.authors}</p>
+          </div>
+          <div className="paper-meta">
+            <span className="update-date">Updated: {paper.update_date}</span>
           </div>
         </header>
 
@@ -131,10 +174,10 @@ export default function PaperDetailPage() {
           </div>
         ) : recommended.length > 0 ? (
           <div className="recommended-grid">
-            {recommended.map((rec) => (
+            {recommended.map((rec, index) => (
               <Link
-                key={rec.id}
-                href={`/paper/${encodeURIComponent(rec.id)}`}
+                key={`${rec.id}-${index}`}
+                href={`/paper/${rec.id}`}
                 className="recommended-card"
               >
                 <div className="card-content">
@@ -143,7 +186,7 @@ export default function PaperDetailPage() {
                     {typeof rec.similarity === "number" && (
                       <div className="similarity-badge">
                         <span className="similarity-label">Relevance</span>
-                        <span className="similarity-score">{rec.similarity.toFixed(2)}</span>
+                        <span className="similarity-score">{(rec.similarity * 100).toFixed(1)}%</span>
                       </div>
                     )}
                   </div>
