@@ -11,5 +11,6 @@
       "src": "/(.*)",
       "dest": "/xtract-ui/$1"
     }
-  ]
+  ],
+  "outputDirectory": "xtract-ui/.next"
 }
