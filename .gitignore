@@ -192,3 +192,6 @@ xtract-api/DataSet/arxiv_processed.csv
 xtract-notebook/embeddings.npy
 xtract-notebook/papers_index.faiss
 xtract-notebook/papers_with_embeddings.csv
+backend/embeddings.npy
+backend/papers_index.faiss
+backend/papers_with_embeddings.csv
