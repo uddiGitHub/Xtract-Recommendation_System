@@ -3,12 +3,14 @@ const nextConfig = {
   output: 'standalone',
   trailingSlash: true,
   images: {
-    unoptimized: true
+    unoptimized: true,
   },
-  // Disable static generation for dynamic routes
-  experimental: {
-    serverComponentsExternalPackages: [],
-  },
-}
 
-export default nextConfig
+  // ✅ New correct key for Next.js 16
+  serverExternalPackages: [],
+
+  // ⚙️ You can still keep experimental features here if needed
+  experimental: {},
+};
+
+export default nextConfig;

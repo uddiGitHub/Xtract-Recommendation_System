@@ -628,7 +628,6 @@
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--primary);
-  background: rgba(0, 0, 0, 0.02);
   padding: 0.125rem 0.5rem;
   border-radius: 4px;
 }
