@@ -9,8 +9,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/xtract-ui/$1"
+      "dest": "/$1"
     }
-  ],
-  "outputDirectory": "xtract-ui/.next"
+  ]
 }
