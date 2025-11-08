@@ -28,7 +28,7 @@ export default function PaperDetailPage() {
     if (id) {
       setLoading(true);
       setError(null);
-      fetch(`http://127.0.0.1:8000/paper/${encodeURIComponent(id)}`)
+      fetch(`https://uddi12-xtract.hf.space/paper/${encodeURIComponent(id)}`)
         .then((res) => {
           if (!res.ok) {
             throw new Error('Failed to fetch paper details');
@@ -39,7 +39,7 @@ export default function PaperDetailPage() {
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
 
-      fetch(`http://127.0.0.1:8000/recommend/${encodeURIComponent(id)}`)
+      fetch(`https://uddi12-xtract.hf.space/recommend/${encodeURIComponent(id)}`)
         .then((res) => res.json())
         .then((data) => setRecommended(data))
         .catch(() => setRecommended([]))
@@ -137,20 +137,25 @@ export default function PaperDetailPage() {
                 href={`/paper/${encodeURIComponent(rec.id)}`}
                 className="recommended-card"
               >
-                <div className="card-header">
-                  <div className="card-badge">Related</div>
-                </div>
                 <div className="card-content">
+                  <div className="card-meta">
+                    <span className="rec-date">{rec.update_date}</span>
+                    {typeof rec.similarity === "number" && (
+                      <div className="similarity-badge">
+                        <span className="similarity-label">Relevance</span>
+                        <span className="similarity-score">{rec.similarity.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
                   <h3 className="rec-title">{rec.title}</h3>
                   <p className="rec-authors">{rec.authors}</p>
-                </div>
-                <div className="card-footer">
-                  <span className="rec-date">{rec.update_date}</span>
-                  <span className="rec-date">Similarity Score: {typeof rec.similarity === "number" ? rec.similarity.toFixed(2) : "N/A"}</span>
-                  <div className="card-arrow">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                  <div className="card-footer">
+                    <span className="view-paper">
+                      View Paper
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
                   </div>
                 </div>
               </Link>
