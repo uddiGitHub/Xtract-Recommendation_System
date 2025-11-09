@@ -14,10 +14,13 @@ It leverages **Natural Language Processing (NLP)** and **transformer-based embed
 
 ## 🧩 Key Features
 
-- 🔍 **Semantic Recommendations:** Finds papers based on meaning, not just keywords.  
-- 💻 **Interactive Frontend:** Simple and intuitive web interface for exploring papers.  
-- 📓 **Notebook Support:** Jupyter notebooks for experimentation, data processing, and embedding generation.  
-- 🧱 **Modular Design:** Separate components for backend, frontend, and research workflow.  
+
+- 🔍 **Semantic Recommendations:** Finds research papers based on meaning, not just keywords.  
+- 🧠 **Powered by Transformer Models:** Tested with both **SciBERT** and **SBERT** models for high-quality contextual embeddings.  
+- 💻 **Interactive Frontend:** Modern, responsive UI for searching and exploring papers.  
+- ☁️ **Deployed on Vercel:** Seamless cloud hosting for easy access and scalability.  
+- 📓 **Notebook Support:** Jupyter notebooks for data preprocessing, embedding generation, and experiments.  
+- 🧱 **Modular Design:** Separate modules for backend, frontend, and notebook experimentation.   
 
 ---
 
