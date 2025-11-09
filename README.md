@@ -21,7 +21,6 @@ It leverages **Natural Language Processing (NLP)** and **transformer-based embed
 
 ---
 
-## 📂 Repository Structure
 
 ## 🗂️ Repository Structure
 
