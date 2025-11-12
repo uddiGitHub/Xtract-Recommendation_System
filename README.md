@@ -1,4 +1,4 @@
-# 🧠 Xtract Research Paper Recommendation System
+# Xtract Research Paper Recommendation System
 
 > Empowering researchers with intelligent recommendations for relevant research papers.
 
